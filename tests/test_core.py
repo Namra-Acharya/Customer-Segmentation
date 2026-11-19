@@ -1,4 +1,5 @@
 import pandas as pd
+from unittest.mock import patch
 
 from src.data_processing import prepare_feature_matrix
 from src.modeling import evaluate_k_values, fit_kmeans, pca_visualization
@@ -33,6 +34,22 @@ def test_kmeans_evaluation_and_pca():
     assert labels.nunique() == 3
     assert set(evaluation.columns) == {"k", "inertia", "silhouette"}
     assert coordinates.shape == (6, 2)
+
+
+def test_silhouette_evaluation_samples_large_datasets():
+    df = pd.DataFrame(
+        {
+            "feature": list(range(1250)) + list(range(1250, 2500)),
+            "other": [0] * 1250 + [10] * 1250,
+        }
+    )
+    _, prepared = prepare_feature_matrix(df, ["feature", "other"])
+
+    with patch("src.modeling.silhouette_score", return_value=0.5) as score:
+        evaluate_k_values(prepared, [2])
+
+    assert score.call_args.kwargs["sample_size"] == 2000
+    assert score.call_args.kwargs["random_state"] == 42
 
 
 def test_profiles_and_segment_names():

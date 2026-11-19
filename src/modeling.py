@@ -55,6 +55,8 @@ def evaluate_k_values(
                 "silhouette": silhouette_score(
                     pipeline.named_steps["scaler"].transform(feature_matrix),
                     labels,
+                    sample_size=min(2000, len(feature_matrix)),
+                    random_state=random_state,
                 ),
             }
         )

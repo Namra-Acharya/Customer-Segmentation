@@ -49,10 +49,11 @@ README.md
 1. Create a GitHub repository and push this project.
 2. Open `share.streamlit.io`.
 3. Choose the repository and set **Main file path** to `app.py`.
-4. Deploy. The included `runtime.txt` selects Python 3.11, which is compatible with the pinned scientific Python packages.
-5. If an older deployment remains stuck, use **Manage app > Reboot app** after the new commit finishes building.
+4. In **Advanced settings**, choose Python 3.11.
+5. Deploy. The app uses a repository-relative dataset path and does not require local file paths.
+6. If an older deployment remains stuck, use **Manage app > Reboot app** after the new commit finishes building.
 
-The app uses a repository-relative dataset path and does not require local file paths.
+The numerical package versions are pinned in `requirements.txt`.
 
 ## Model notes
 
