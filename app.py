@@ -27,6 +27,11 @@ def load_default_data(path: str) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
+@st.cache_data(show_spinner=False)
+def cached_evaluation(feature_matrix: pd.DataFrame) -> pd.DataFrame:
+    return evaluate_k_values(feature_matrix, range(2, 11))
+
+
 def metric_card(label: str, value: str) -> None:
     st.markdown(
         f"""
@@ -136,6 +141,7 @@ with st.sidebar:
                     "coordinates",
                     "assigned_customers",
                     "profile_df",
+                    "evaluation",
                 ):
                     st.session_state.pop(key, None)
                 st.session_state["uploaded_name"] = uploaded.name
@@ -243,42 +249,16 @@ with tabs[2]:
         st.caption(f"{len(selected_features)} feature(s) selected")
         n_clusters = st.slider("Number of clusters", 2, 10, 4)
         run_evaluation = st.button(
-            "Run K-Means", type="primary", use_container_width=True
+            "Run K-Means analysis", type="primary", use_container_width=True
         )
+        st.caption("This runs the model, evaluation metrics, and visualization.")
 
     with right:
         try:
             _, prepared = prepare_feature_matrix(df, selected_features)
-            with st.spinner("Evaluating 2 to 10 clusters..."):
-                evaluation = evaluate_k_values(prepared, range(2, 11))
-
-            st.subheader("Elbow and silhouette evaluation")
-            e1, e2 = st.columns(2)
-            with e1:
-                elbow_fig = px.line(
-                    evaluation,
-                    x="k",
-                    y="inertia",
-                    markers=True,
-                    labels={"k": "Number of clusters", "inertia": "Inertia"},
-                )
-                elbow_fig.update_traces(line={"color": "#2563eb", "width": 3})
-                elbow_fig.update_layout(height=330, template="plotly_white", margin={"l": 20, "r": 20, "t": 20, "b": 20})
-                st.plotly_chart(elbow_fig, use_container_width=True)
-            with e2:
-                silhouette_fig = px.line(
-                    evaluation,
-                    x="k",
-                    y="silhouette",
-                    markers=True,
-                    labels={"k": "Number of clusters", "silhouette": "Silhouette score"},
-                )
-                silhouette_fig.update_traces(line={"color": "#f97316", "width": 3})
-                silhouette_fig.update_layout(height=330, template="plotly_white", margin={"l": 20, "r": 20, "t": 20, "b": 20})
-                st.plotly_chart(silhouette_fig, use_container_width=True)
-
             if run_evaluation:
                 with st.spinner("Fitting K-Means and preparing cluster outputs..."):
+                    evaluation = cached_evaluation(prepared)
                     pipeline, labels = fit_kmeans(prepared, n_clusters)
                     coordinates = pca_visualization(prepared, pipeline)
                     coordinates["Cluster"] = labels.astype(str)
@@ -294,14 +274,54 @@ with tabs[2]:
                     st.session_state["profile_df"] = cluster_profile(
                         df, labels, selected_features
                     )
+                    st.session_state["evaluation"] = evaluation
 
             coordinates = st.session_state.get("coordinates")
             assigned = st.session_state.get("assigned_customers")
             if coordinates is not None and assigned is not None:
+                evaluation = st.session_state.get("evaluation")
                 st.success(
                     f"Model complete: {st.session_state['n_clusters']} clusters "
                     f"for {len(assigned):,} customers."
                 )
+
+                st.subheader("Elbow and silhouette evaluation")
+                e1, e2 = st.columns(2)
+                with e1:
+                    elbow_fig = px.line(
+                        evaluation,
+                        x="k",
+                        y="inertia",
+                        markers=True,
+                        labels={"k": "Number of clusters", "inertia": "Inertia"},
+                    )
+                    elbow_fig.update_traces(line={"color": "#2563eb", "width": 3})
+                    elbow_fig.update_layout(
+                        height=330,
+                        template="plotly_white",
+                        margin={"l": 20, "r": 20, "t": 20, "b": 20},
+                    )
+                    st.plotly_chart(elbow_fig, use_container_width=True)
+                with e2:
+                    silhouette_fig = px.line(
+                        evaluation,
+                        x="k",
+                        y="silhouette",
+                        markers=True,
+                        labels={
+                            "k": "Number of clusters",
+                            "silhouette": "Silhouette score",
+                        },
+                    )
+                    silhouette_fig.update_traces(
+                        line={"color": "#f97316", "width": 3}
+                    )
+                    silhouette_fig.update_layout(
+                        height=330,
+                        template="plotly_white",
+                        margin={"l": 20, "r": 20, "t": 20, "b": 20},
+                    )
+                    st.plotly_chart(silhouette_fig, use_container_width=True)
 
                 st.subheader("Cluster visualization (PCA)")
                 viz = px.scatter(
